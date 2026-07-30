@@ -4,19 +4,19 @@
 
 ## 基本规则
 
-- 每个阶段默认由 fresh Dev 开始。相邻小阶段只有在紧密耦合且一个上下文能稳定容纳时才可共用 Dev。
+- 同一需求、调用链和所有权范围内的相邻串行阶段，只要上下文健康且能稳定容纳，默认复用当前 Dev；出现明显领域切换、独立高风险边界或下述健康失败时才换 fresh Dev。
 - 一个阶段可以由 `Dev-A -> Dev-B` 等多个 fresh Dev 串行接力，但任何时刻只能有一个 writer；换班不是并行开发，也不需要 Integrator。
-- 阶段在完成前包含至少两个顺序、可验证的安全 checkpoint，或被 spec/Wayfinder 标为大型阶段时，记为 `LONG_STAGE`；派发前记录一个或多个 `planned_rotation_checkpoint`，尚无安全点时记录 `PENDING_SAFE_BOUNDARY` 并在出现首个可恢复点时更新。到达计划点且仍有实质工作时必须换班，但开发节点和阶段状态不变。
+- 阶段在完成前包含至少两个顺序、可验证的安全 checkpoint，或被 spec/Wayfinder 标为大型阶段时，记为 `LONG_STAGE`；派发前记录一个或多个 `planned_rotation_checkpoint` 作为上下文健康评估点，尚无安全点时记录 `PENDING_SAFE_BOUNDARY` 并在出现首个可恢复点时更新。到达计划点时先执行健康检查；上下文健康且没有领域切换或独立高风险边界时继续复用当前 Dev。
 - 换班继承原 `task_id`、阶段验收标准、依赖、workspace、timer key 和已固定的绝对 `deadline_at`；尚未触发默认节点时钟时继承 `PENDING_FIRST_IMPLEMENTATION`。不得借换班扩大范围、重置时限或提前解锁后继节点。
 - `compression_count` 仅统计运行时明确可观察的压缩事件，按阶段累计并由接力 Dev 继承；事件不可观察时记为 `UNKNOWN`，不得猜测或伪造。`rotation_count` 只记录已完成的换班次数。
-- 用户明确只允许一个 Dev/子会话时仍执行健康检查；一旦到达计划换班点或命中其他强制换班条件，停止继续写入，固定 checkpoint/snapshot 并只返回 `BLOCKED` 等待确认。该分支不进入下方换班顺序、不返回 `HANDOFF_READY`、不退休当前 Dev，也不把 writer lease 授予其他会话；当前 Dev 保持闲置且不得继续生产代码。
+- 用户明确只允许一个 Dev/子会话时仍执行健康检查；到达计划评估点且上下文健康时继续复用，只有命中领域切换、独立高风险边界或其他强制换班条件时才停止继续写入，固定 checkpoint/snapshot 并只返回 `BLOCKED` 等待确认。该分支不进入下方换班顺序、不返回 `HANDOFF_READY`、不退休当前 Dev，也不把 writer lease 授予其他会话；当前 Dev 保持闲置且不得继续生产代码。
 - 优先在稳定子目标、focused tests 或 checkpoint 边界换班。处于未解决冲突、半完成迁移、不可安全中断的数据操作或无法恢复的中间状态时，先停止新增范围并恢复到安全边界；无法做到则 `BLOCKED`。
 
 ## 触发判断
 
 Dev 和主任务在阶段边界及明显上下文事件后检查以下信号：
 
-1. `LONG_STAGE` 到达 `planned_rotation_checkpoint` 且仍有实质工作：必须换班；该规则不依赖运行时是否报告压缩。
+1. `LONG_STAGE` 到达 `planned_rotation_checkpoint` 且仍有实质工作：执行上下文健康检查并更新交接 artifact；只有出现领域切换、独立高风险边界或下述健康失败时才换班。
 2. 第一次可观察的上下文压缩：记为预警，尽快固定 checkpoint/snapshot，并开始维护交接 artifact；若已有稳定 checkpoint 且剩余工作仍明显较多，可主动换班，但不是强制门禁。
 3. 同一阶段第二次可观察的上下文压缩：必须在最近安全边界换班。
 4. 无论压缩次数，只要出现任一健康失败就必须换班：

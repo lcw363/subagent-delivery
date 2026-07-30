@@ -26,9 +26,18 @@
 ## 串行与并行
 
 - 正常串行：任一时刻由唯一活跃 Dev 直接写目标工作区；阶段内可按上下文协议换班，但不创建 Integrator。阶段验证通过后创建并核对 stage checkpoint，完成后才达到 `DEV_PASS`；后继节点从该最新目标状态启动。
+- 派发串行 Dev 前若确认目标分支正被其他 writer 持续推进，优先等待其释放，或从固定基线创建隔离 worktree 后再写入。不要让 Dev 在移动中的共享分支上反复接受新基线、重跑验证和重建 checkpoint。
 - 正常并行：先固定 `BASE_SHA`，每个 Dev 使用独立 worktree 和本地 `codex/delivery-*` branch/ref，且只写自己的所有权范围。focused tests 和 task commit 完成后返回固定 `TASK_SHA` 并达到 `DEV_READY`。
 - Integrator 获取目标工作区独占 writer lease，按依赖顺序消费固定 `TASK_SHA`，核对父 SHA 与写入范围，运行批次验证并创建 integration checkpoint；独立 batch Review/fix loop 对最新 checkpoint 通过后，相关节点才达到 `DEV_PASS`。
 - 并行 task ref 和 worktree 保留到集成、Review 与修复结束。只有确认干净且不再用于恢复时才清理 worktree；本地 checkpoint/ref 默认保留并在最终报告列出。
+
+## 资源所有权与收口
+
+- 子会话创建本地服务、进程、端口、fixture、临时目录或 worktree 前，在 `RESOURCE_LEDGER` 记录 `owner_task`、`owner_session`、类型、标识、创建证据、是否共享、消费者、清理条件和清理方式；任务前已存在的资源标记 `PREEXISTING`。
+- 节点收口时，只清理能证明由当前节点创建、`shared=false`、没有后续消费者且不再用于恢复的资源。清理本地进程时同时核对 PID、启动时间和命令；清理 fixture、临时目录或 worktree 时核对创建标记和路径。
+- 不终止共享 Codex、MCP、CodeGraph、Docker daemon 或其他任务的进程，也不清理仍被测试、Review、恢复或后继节点使用的资源。
+- 无法证明所有权或安全清理条件时不自动处理，只记录标识、当前状态、潜在占用和建议的人工清理方式。
+- 清理结果记录 `CLEANED|RETAINED_SHARED|RETAINED_FOR_RECOVERY|OWNERSHIP_UNKNOWN|CLEANUP_FAILED`；清理失败不能伪装成成功，也不能用破坏性命令强制收口。
 
 ## 失败与退化
 
