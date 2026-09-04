@@ -73,7 +73,7 @@ Dev 必须：
 - 开发中跑 focused tests。实现后用 `$code-simplifier` 或等价规则简化本次改动，补充只解释关键“为什么”的注释，重跑受影响测试，再做需求遗漏、异常路径、测试缺口与复杂度自检。
 - 串行阶段收口或并行批次集成后只运行一次适用的受影响回归、类型检查、编译或构建；最终验证只补尚未覆盖的整体验证，避免机械重复重测试。
 - 默认验证集合为目标测试、生产 compile/build、适用的 OpenSpec strict validate 和 diff-check。全量测试只在项目规则、用户或验收标准明确要求，且不存在已确认的范围外基线阻塞时运行；已知无关 `testCompile`/全量失败不反复重试、不纳入当前修复范围。
-- 创建本地服务、端口、fixture、临时目录或 worktree 前登记资源所有权；节点收口时只清理能证明由当前节点创建、非共享且无后续消费者的资源，遵循 [checkpoint-and-recovery.md](references/checkpoint-and-recovery.md)。
+- 需要 CodeGraph 时，先查询主任务维护的同仓库 `CODEGRAPH_REGISTRY` 并复用唯一可用服务；不得让每个 Dev/Reviewer 分别启动。只有主任务授权的首个节点可启动实例并登记为共享资源；节点结束释放自己的消费者租约，若该节点启动的实例已无消费者则主动关闭。其他资源登记与清理遵循 [checkpoint-and-recovery.md](references/checkpoint-and-recovery.md)。
 
 新增或修改 HTTP API 时，建立以固定 code checkpoint 和可用环境为输入的独立 acceptance 节点；交付完成前必须取得对最终 fixed point 仍有效的 `HTTP_PASS`。真实调用、证据、阻塞、wire type、凭据和过期处理遵循 [evidence-and-briefs.md](references/evidence-and-briefs.md)；HTTP 节点状态不抹除已取得的代码或 Review 状态，但会约束显式依赖节点与整体完成。
 

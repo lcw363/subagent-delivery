@@ -34,8 +34,10 @@
 ## 资源所有权与收口
 
 - 子会话创建本地服务、进程、端口、fixture、临时目录或 worktree 前，在 `RESOURCE_LEDGER` 记录 `owner_task`、`owner_session`、类型、标识、创建证据、是否共享、消费者、清理条件和清理方式；任务前已存在的资源标记 `PREEXISTING`。
+- CodeGraph 按仓库而非节点管理。主任务维护 `CODEGRAPH_REGISTRY[repo_root]`，至少记录服务端点或 PID、启动时间/命令、`owner_task`/`owner_session`、`shared=true`、消费者租约与创建证据。每个节点使用前先查询并复用该唯一可用实例；存在登记实例时不得另启 CodeGraph，也不得重复初始化索引或等价服务。只有主任务明确授权的首个节点可创建实例，创建后立即登记并对后续节点共享。
+- 使用 CodeGraph 的节点登记并在收口时释放自己的消费者租约。若节点能证明实例由自己启动、所有消费者已释放且不再用于恢复或后继节点，则在收口时主动关闭该进程并记录 `CLEANED`；否则记录 `RETAINED_SHARED` 或 `RETAINED_FOR_RECOVERY`。不能证明 PID、启动时间、命令和所有权一致时，不终止进程。
 - 节点收口时，只清理能证明由当前节点创建、`shared=false`、没有后续消费者且不再用于恢复的资源。清理本地进程时同时核对 PID、启动时间和命令；清理 fixture、临时目录或 worktree 时核对创建标记和路径。
-- 不终止共享 Codex、MCP、CodeGraph、Docker daemon 或其他任务的进程，也不清理仍被测试、Review、恢复或后继节点使用的资源。
+- 不终止共享 Codex、MCP、CodeGraph、Docker daemon 或其他任务的进程，也不清理仍被测试、Review、恢复或后继节点使用的资源；上述 CodeGraph 条件满足时关闭的是已无消费者的自建实例，不是共享实例。
 - 无法证明所有权或安全清理条件时不自动处理，只记录标识、当前状态、潜在占用和建议的人工清理方式。
 - 清理结果记录 `CLEANED|RETAINED_SHARED|RETAINED_FOR_RECOVERY|OWNERSHIP_UNKNOWN|CLEANUP_FAILED`；清理失败不能伪装成成功，也不能用破坏性命令强制收口。
 

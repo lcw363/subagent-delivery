@@ -13,11 +13,11 @@
 - 模型角色层级、实际选用模型（可见时）、推理强度、选择/升级原因和 fallback；
 - `COMMIT_MODE`、checkpoint 规则、timer key、绝对 `deadline_at`（默认节点时钟尚未触发时为 `PENDING_FIRST_IMPLEMENTATION`）和发布权限；
 - `spawn_authority=main_only`，子会话不得创建孙子会话；需要额外角色时返回给主任务统一派发；
-- `RESOURCE_LEDGER`：当前节点拥有、共享、任务前已存在或需要保留到恢复/后继节点的服务、进程、端口、fixture、临时目录和 worktree；
+- `RESOURCE_LEDGER`：当前节点拥有、共享、任务前已存在或需要保留到恢复/后继节点的服务、进程、端口、fixture、临时目录和 worktree；如使用 CodeGraph，附同仓库 `CODEGRAPH_REGISTRY` 条目、消费者租约与复用/关闭状态；
 - 首次派发时的 `LONG_STAGE`、`planned_rotation_checkpoint`、`context_epoch=0`、`compression_count=0|UNKNOWN`、`rotation_count=0`；接力派发时继承这些字段、换班原因、交接 artifact 路径/hash 和剩余 deadline；
 - 必要项目规则与已确认决策，不附整段聊天或其他节点完整日志。
 
-Dev 返回：节点状态、改动摘要、关键文件、每项改动对应的需求或最小支撑理由、简化/注释、自检、测试与 HTTP 摘要、checkpoint 状态/SHA/artifact 路径、`RESOURCE_LEDGER` 清理结果、未完成项、阻塞和风险；没有未授权范围扩张时明确记录 `SCOPE_OK`。
+Dev 返回：节点状态、改动摘要、关键文件、每项改动对应的需求或最小支撑理由、简化/注释、自检、测试与 HTTP 摘要、checkpoint 状态/SHA/artifact 路径、`RESOURCE_LEDGER` 与 CodeGraph 消费者租约的释放/保留/关闭结果、未完成项、阻塞和风险；没有未授权范围扩张时明确记录 `SCOPE_OK`。
 
 上下文换班时，旧 Dev 额外返回 `HANDOFF_READY`、换班原因、`context_epoch`/`compression_count`/`rotation_count`、固定 checkpoint、交接 artifact 路径/hash 和 workspace 状态；主任务记录旧 Dev 退休、writer lease 释放与新 owner，新 Dev 返回对交接字段的核对结果。详细格式见 [context-rotation.md](context-rotation.md)。
 
